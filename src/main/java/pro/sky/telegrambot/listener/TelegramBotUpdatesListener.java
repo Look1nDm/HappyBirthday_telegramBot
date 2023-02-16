@@ -56,15 +56,16 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
                 logger.info("Processing update: {}", update);
                 switch (text) {
                     case ("/start"):
-                        SendMessage massage = new SendMessage(update.message().chat().id(), "Привет пользователь " +
+                        SendMessage massage = new SendMessage(update.message().chat().id(), "Привет " +
                                 update.message().chat().firstName() + ". Добавим кого-нибудь в список поздравлений?!" + " Список доступных команд:\n" +
                                 "/yes\n" +
                                 "/no\n");
                         telegramBot.execute(massage);
                         break;
                     case ("/yes"):
-                        SendMessage messageDa = new SendMessage(update.message().chat().id(), "Отлично,используй команду /add и введи Имя, Фамилию и " +
-                                "дату рождения в формате 01.20.2022.");
+                        SendMessage messageDa = new SendMessage(update.message().chat().id(), "Отлично,используй команду /add и после нее через пробел" +
+                                " введи Имя, Фамилию и " +
+                                "дату рождения в формате 01.02.2022.");
                         telegramBot.execute(messageDa);
                         break;
                     case ("/no"):
@@ -103,7 +104,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         // паттерн для вычленения текстовой части в сообщении
         Pattern patternString = Pattern.compile("([А-Я|а-я])+\\s([А-Я|а-я])+");
         NotificationTask notificationTaskCopyInDB = new NotificationTask();
-        notificationTaskCopyInDB.setChatId(message.chat().id());
+        notificationTaskCopyInDB.setChat_id(message.chat().id());
 
         Matcher matcherDate = patternDate.matcher(message.text().trim());
         Matcher matcherString = patternString.matcher(message.text().trim());
@@ -112,6 +113,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
         }
         LocalDate dateTime = LocalDate.parse(matcherDate.group(), DateTimeFormatter.ofPattern("dd.MM.yyyy"));
         notificationTaskCopyInDB.setDatetime(dateTime);
+        notificationTaskCopyInDB.setDayOfYear(dateTime.getDayOfYear());
 
         String text = matcherString.group();
         notificationTaskCopyInDB.setMessage(text);
@@ -121,14 +123,12 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
     @Scheduled(cron = "0 0/1 * * * *")
     public void run() {
-            LocalDate localDate = LocalDate.now(); // узнаем дату
-            String day = String.valueOf(localDate.getDayOfMonth());// делаем из числового дня строку
-            String month = String.valueOf(localDate.getMonthValue());// делаем из числового месяца строку
-            String dayAndMonth = day+"."+month;// скрепляем, как по формату из LocalDate
-            NotificationTask birthdayKent = notificationTaskRepository.findContains(dayAndMonth);// закидываем в метод с запрос в БД
-            if (birthdayKent!=null){
-            telegramBot.execute(new SendMessage(birthdayKent.getChatId(),
-                    "Сегодня у твоего кента " + birthdayKent.getMessage() +
-                            " день рождение! Не забудь поздравить."));}
+            LocalDate localDate = LocalDate.now();
+            int dayOfYear = localDate.getDayOfYear();
+            List <NotificationTask> birthdayKent = notificationTaskRepository.findAllByLocalDate_DayOfYear(dayOfYear);
+            if(!birthdayKent.isEmpty()) {
+                birthdayKent.forEach(e -> telegramBot.execute(new SendMessage(e.getChat_id(), "Слухай братюнь, сегодня у твоего кента " +
+                        e.getMessage() + " день рождение. Не забудь поздравить!")));
+            }
     }
 }

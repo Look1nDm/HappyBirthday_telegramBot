@@ -22,7 +22,8 @@ public class NotificationTask {
     @Id
     @GeneratedValue
     private Long id;
-    private Long chatId;
+    private Long chat_id;
+    private Integer dayOfYear;
     private String message;
     private LocalDate datetime;
 
